@@ -1,0 +1,14 @@
+# Decision Log
+
+- **Outcome cleanup:** normalized status labels to uppercase and trimmed whitespace, so `Rto` and `delivered` are treated consistently. Excluded the single `IN_TRANSIT` row from supervised training rather than pretending it was a final outcome.
+- **Duplicate IDs:** detected 30 duplicate `order_id` values. Kept the sample intact for initial profiling but flagged this as a data-quality issue; production evaluation must investigate duplicates and use an order-level deduplication rule.
+- **Model choice:** chose a regularized logistic-regression baseline with one-hot encoded state, courier, and acquisition source plus numeric/order-quality features. Alternatives: a tree ensemble (more nonlinear but less transparent) or pure rules (more explainable but may miss combined patterns). Logistic regression is easy to inspect and fast for a take-home prototype.
+- **Validation:** used 5-fold stratified out-of-fold probabilities for the workbook's historical action simulation to reduce in-sample optimism. For production, prefer time-based holdout because order outcomes are temporal.
+- **Feature boundary:** used customer prior order/RTO history, courier, state, source, order value/items, and basic address-quality flags. Avoided using raw customer name, phone, exact address, or exact pincode as model features to reduce privacy risk and memorization.
+- **LLM boundary:** LLM only for uncertain free-text/Hinglish address interpretation and structured explanation. Ordinary code handles arithmetic, missing-field checks, placeholder keyword checks, threshold comparisons, and decision logging.
+- **Default thresholds:** ship as-is below 20%; confirmation from 20% to below 36%; prepaid nudge from 36%; hold/cancel at 50%+ only when prior RTO history exists. These are starting points to test, not claimed optimal thresholds.
+- **Marketing protection:** no first-time buyer is auto-cancelled based only on model risk. High-risk new customers are routed to a reversible step (prepaid offer / confirmation) or human review.
+- **Prepaid offer:** chose ₹30 as a testable starting discount. Direct RTO cost is ₹169.40; moving an order from 28% to 4% RTO avoids an expected ₹40.66 of direct RTO cost, leaving ₹10.66 after the discount on this narrow cost-only view. Conversion and margin effects still need experimentation.
+- **Timeout behavior:** no reply within 24 hours results in hold and one reminder; cancellation follows only the configured policy and should be logged. Unknown replies receive quick-reply options and can escalate to a human.
+- **Financial reporting:** dashboard estimates are labeled scenario estimates, not realized savings. Real impact needs a holdout and full contribution-margin accounting.
+- **Dashboard date:** supports selecting a date from the historical sample; the default is the latest available date, rather than pretending the historical dataset represents yesterday's live orders.
